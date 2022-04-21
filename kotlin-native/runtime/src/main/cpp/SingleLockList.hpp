@@ -12,40 +12,37 @@
 #include <mutex>
 #include <type_traits>
 
-#include "Alloc.h"
 #include "Mutex.hpp"
 #include "Types.h"
 #include "Utils.hpp"
+#include "std_support/Memory.hpp"
 
 namespace kotlin {
 
 // TODO: Consider different locking mechanisms.
-template <typename Value, typename Mutex>
+template <typename Value, typename Mutex, typename Allocator = std_support::allocator<Value>>
 class SingleLockList : private Pinned {
 public:
     class Node;
 
 private:
-    class NodeDeleter {
-    public:
-        void operator()(Node* node) const { delete node; }
-    };
-
-    using NodeOwner = std::unique_ptr<Node, NodeDeleter>;
+    using NodeAllocator = typename std::allocator_traits<Allocator>::template rebind_alloc<Node>;
+    using NodeOwner = std_support::unique_ptr<Node, std_support::allocator_deleter<NodeAllocator>>;
 
 public:
-    class Node : private Pinned, public KonanAllocatorAware {
+    // TODO: Hide Node.
+    class Node : private Pinned {
     public:
+        template <typename... Args>
+        explicit Node(Args&&... args) noexcept : value_(std::forward<Args>(args)...) {}
+
+        // Make sure `Node` can only be deleted by `SingleLockList` itself.
+        ~Node() = default;
+
         Value* Get() noexcept { return &value_; }
 
     private:
         friend class SingleLockList;
-
-        template <typename... Args>
-        Node(Args&&... args) noexcept : value_(std::forward<Args>(args)...) {}
-
-        // Make sure `Node` can only be deleted by `SingleLockList` itself.
-        ~Node() = default;
 
         Value value_;
         NodeOwner next_;
@@ -90,6 +87,8 @@ public:
         std::unique_lock<Mutex> guard_;
     };
 
+    explicit SingleLockList(const Allocator& allocator = Allocator()) noexcept : allocator_(NodeAllocator(allocator)) {}
+
     ~SingleLockList() {
         AssertCorrectUnsafe();
         // Make sure not to blow up the stack by nested `~Node` calls.
@@ -102,12 +101,12 @@ public:
     // TODO: Consider making `Emplace` append to `last_`.
     template <typename... Args>
     Node* Emplace(Args&&... args) noexcept {
-        auto* nodePtr = new Node(std::forward<Args>(args)...);
-        NodeOwner node(nodePtr);
+        auto node = std_support::allocate_unique<Node>(allocator_, std::forward<Args>(args)...);
+        auto* nodePtr = node.get();
         std::lock_guard<Mutex> guard(mutex_);
         AssertCorrectUnsafe();
         if (root_) {
-            root_->previous_ = node.get();
+            root_->previous_ = nodePtr;
         } else {
             last_ = nodePtr;
         }
@@ -168,6 +167,7 @@ private:
     NodeOwner root_;
     Node* last_ = nullptr;
     Mutex mutex_;
+    NodeAllocator allocator_;
 };
 
 } // namespace kotlin

@@ -53,6 +53,7 @@
 #include "Utils.hpp"
 #include "WorkerBoundReference.h"
 #include "Weak.h"
+#include "std_support/New.hpp"
 
 #ifdef KONAN_OBJC_INTEROP
 #include "ObjCMMAPI.h"
@@ -196,7 +197,7 @@ struct CycleDetectorRootset {
   KStdVector<ScopedRefHolder> heldRefs;
 };
 
-class CycleDetector : private kotlin::Pinned, public KonanAllocatorAware {
+class CycleDetector : private kotlin::Pinned {
  public:
   static void insertCandidateIfNeeded(KRef object) {
     if (canBeACandidate(object))
@@ -216,7 +217,7 @@ class CycleDetector : private kotlin::Pinned, public KonanAllocatorAware {
 
   static CycleDetector& instance() {
     // Only store a pointer to CycleDetector in .bss
-    static CycleDetector* result = new CycleDetector();
+    static CycleDetector* result = new (kalloc) CycleDetector();
     return *result;
   }
 
