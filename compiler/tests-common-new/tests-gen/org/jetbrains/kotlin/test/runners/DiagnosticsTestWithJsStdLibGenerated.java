@@ -815,7 +815,6 @@ public class DiagnosticsTestWithJsStdLibGenerated extends AbstractDiagnosticsTes
             runTest("compiler/testData/diagnostics/testsWithJsStdLib/native/enumEntry.kt");
         }
 
-
         @Test
         @TestMetadata("enumMethods.kt")
         public void testEnumMethods() throws Exception {
