@@ -644,6 +644,20 @@ private fun generateMultiWrappedModuleBody(
     return mainModule
 }
 
+private fun<T, K> Iterable<T>.groupBySubsequent(keySelector: (T) -> K): List<Pair<K, List<T>>> {
+    val result = mutableListOf<Pair<K, MutableList<T>>>()
+    var lastKey: K? = null
+    for (value in this) {
+        val key = keySelector(value)
+        if (key != lastKey) {
+            result.add(key to mutableListOf())
+            lastKey = key
+        }
+        result.last().second.add(value)
+    }
+    return result
+}
+
 fun generateSingleWrappedModuleBody(
     moduleName: String,
     moduleKind: ModuleKind,
@@ -663,6 +677,27 @@ fun generateSingleWrappedModuleBody(
     ).merge()
 
     program.resolveTemporaryNames()
+
+    val functionSorter = object : RecursiveJsVisitor() {
+        override fun visitBlock(x: JsBlock) {
+            val statements = x.statements
+            if (statements.size > 1) {
+                val sortedStatements =
+                    statements.groupBySubsequent { it::class to (it is JsExpressionStatement && it.expression is JsFunction) }
+                        .flatMap { (key, group) ->
+                            val isFunctions = key.second
+                            group.takeIf { isFunctions }
+                                ?.sortedBy { (it as JsExpressionStatement).expression.let { (it as JsFunction).name.ident } }
+                                ?: group
+                        }
+                statements.clear()
+                statements.addAll(sortedStatements)
+            }
+            super.visitBlock(x)
+        }
+    }
+
+    program.accept(functionSorter)
 
     val jsCode = TextOutputImpl()
 
