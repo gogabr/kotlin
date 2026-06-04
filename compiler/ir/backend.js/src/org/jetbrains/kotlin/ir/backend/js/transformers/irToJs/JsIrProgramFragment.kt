@@ -6,12 +6,12 @@
 package org.jetbrains.kotlin.ir.backend.js.transformers.irToJs
 
 import org.jetbrains.kotlin.backend.common.serialization.cityHash64String
+import org.jetbrains.kotlin.backend.common.serialization.toStableJsIdentifier
 import org.jetbrains.kotlin.ir.backend.js.ic.IrICModule
 import org.jetbrains.kotlin.ir.backend.js.ic.IrICProgramFragment
 import org.jetbrains.kotlin.ir.backend.js.ic.IrICProgramFragments
 import org.jetbrains.kotlin.ir.backend.js.tsexport.TypeScriptFragment
 import org.jetbrains.kotlin.ir.backend.js.utils.serialization.serializeTo
-import org.jetbrains.kotlin.ir.backend.js.utils.toJsIdentifier
 import org.jetbrains.kotlin.js.backend.ast.*
 import org.jetbrains.kotlin.js.config.ModuleKind
 import java.io.File
@@ -176,13 +176,13 @@ private class JsIrModuleCrossModuleReferenceBuilder(
     lateinit var exportNames: Map<String, String> // tag -> index
 
     fun buildExportNames(startIndex: Int = 0) {
-        var index = startIndex
+        val used = mutableSetOf<String>()
         exportNames = exports.sorted().associateWith { tag ->
             // Bundlers should minimize the names by ourselves. Ex, webpack has `optimization.mangleExports` property
             if (moduleKind == ModuleKind.ES) {
                 "${header.nameBindings[tag]}${tag.cityHash64String()}"
             } else {
-                index++.toJsIdentifier()
+                tag.toStableJsIdentifier(used)
             }
         }
     }

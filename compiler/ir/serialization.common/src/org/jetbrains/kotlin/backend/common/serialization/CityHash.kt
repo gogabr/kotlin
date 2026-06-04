@@ -339,3 +339,35 @@ fun cityHash128(s: ByteArray, pos: Int = 0, len: Int = s.size): Hash128Bits {
         cityHash128WithSeed(Hash128Bits(k0, k1), s, pos, len)
     }
 }
+
+/**
+ * Converts a CityHash64 value to a stable 3-letter JS identifier (e.g., "zxc3").
+ * 52*62*62*62 = 12,393,056 unique combinations.
+ */
+fun Long.toStableJsIdentifier(): String {
+    val base62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+    val hash = this and 0x7FFFFFFFFFFFFFFF
+
+    val char4 = base62[(hash % 62).toInt()]
+    val char3 = base62[((hash / 62) % 62).toInt()]
+    val char2 = base62[((hash / (62 * 62)) % 62).toInt()]
+    val char1 = base62[((hash / (62 * 62 * 62)) % 52).toInt()]
+
+    return "$char1$char2$char3$char4"
+}
+
+/**
+ * Returns a stable JS identifier for a given string.
+ */
+fun String.toStableJsIdentifier(used: MutableSet<String>): String {
+    val hashId = this.cityHash64().toStableJsIdentifier()
+    var name = hashId
+    var suffix = 1
+    while (name in used) {
+        name = "$hashId$suffix"
+        suffix++
+    }
+    used.add(name)
+    return name
+}
