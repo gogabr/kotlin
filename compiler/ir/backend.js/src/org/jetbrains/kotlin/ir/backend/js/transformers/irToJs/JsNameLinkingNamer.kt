@@ -18,9 +18,6 @@ import org.jetbrains.kotlin.js.backend.ast.metadata.constant
 import org.jetbrains.kotlin.js.common.makeValidES5Identifier
 import org.jetbrains.kotlin.utils.DFS
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
-import java.nio.ByteBuffer
-import java.util.Base64
-import java.util.Objects
 
 class JsNameLinkingNamer(
     private val context: JsIrBackendContext,
@@ -156,17 +153,9 @@ class JsNameLinkingNamer(
         return name.toJsName(temporary = false)
     }
 
-    private fun getShortHash(value: Int): String {
-        val encoder = Base64.getEncoder()
-        val numSymbols = 4
-        val valueAsArray = ByteBuffer.allocate(Int.SIZE_BYTES).putInt(value).array()
-        val base64Encoded = encoder.encodeToString(valueAsArray).substring(0, numSymbols)
-        return base64Encoded.replace('+', '_').replace('/', '$')
-    }
 
     private fun IrClass.fieldData(): Map<IrField, String> {
         return context.fieldDataCache.getOrPut(this) {
-            val nameExists = hashSetOf<String>()
             val nameCnt = hashMapOf<String, Int>()
 
             val allClasses = DFS.topologicalOrder(listOf(this)) { node ->
@@ -202,8 +191,8 @@ class JsNameLinkingNamer(
                 }
             }
 
-            allClasses.reversed().forEach { irClass ->
-                irClass.declarations.forEach {
+            allClasses.reversed().forEach {
+                it.declarations.forEach {
                     when {
                         it is IrField -> {
                             val correspondingProperty = it.correspondingPropertySymbol?.owner
@@ -217,24 +206,15 @@ class JsNameLinkingNamer(
                                else -> it.safeName()
                             }
                             val resultName = if (!hasStableName) {
-                                var hashCode = irClass.getName().ident.hashCode()
-                                var newName: String
-                                while (true) {
-                                    val suffix = getShortHash(hashCode)
-                                    newName = "${safeName}_$suffix"
-                                    if (!nameExists.contains(newName)) {
-                                        break
-                                    }
-                                    hashCode = Objects.hash(hashCode, 1)
-                                }
-                                nameExists.add(newName)
-                                newName
+                                val suffix = nameCnt.getOrDefault(safeName, 0) + 1
+                                nameCnt[safeName] = suffix
+                                safeName + "_$suffix"
                             } else safeName
                             result[it] = resultName
                         }
 
                         it is IrFunction && it.dispatchReceiverParameter != null -> {
-                            nameExists.add(jsFunctionSignature(it, context)) // avoid clashes with member functions
+                            nameCnt[jsFunctionSignature(it, context)] = 1 // avoid clashes with member functions
                         }
                     }
                 }
