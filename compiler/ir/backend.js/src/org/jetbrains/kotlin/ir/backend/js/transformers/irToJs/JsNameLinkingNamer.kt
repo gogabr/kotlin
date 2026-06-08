@@ -202,7 +202,8 @@ class JsNameLinkingNamer(
                                     correspondingProperty.isSimpleProperty
                             val safeName = when {
                                hasStableName -> correspondingProperty.getJsNameOrKotlinName().identifier
-                               minimizedMemberNames && !context.keeper.shouldKeep(it) -> context.minimizedNameGenerator.generateNextName()
+                               minimizedMemberNames && !context.keeper.shouldKeep(it) ->
+                                    context.minimizedNameGenerator.generateNextName(it.getJsNameOrKotlinName().identifier)
                                else -> it.safeName()
                             }
                             val resultName = if (!hasStableName) {
@@ -214,7 +215,9 @@ class JsNameLinkingNamer(
                         }
 
                         it is IrFunction && it.dispatchReceiverParameter != null -> {
-                            nameCnt[jsFunctionSignature(it, context)] = 1 // avoid clashes with member functions
+                            val signature = jsFunctionSignature(it, context)
+                            require(signature !in nameCnt)
+                            nameCnt[signature] = 1 // avoid clashes with member functions
                         }
                     }
                 }
