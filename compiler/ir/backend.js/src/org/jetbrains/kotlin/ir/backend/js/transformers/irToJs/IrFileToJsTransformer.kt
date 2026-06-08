@@ -8,6 +8,8 @@ package org.jetbrains.kotlin.ir.backend.js.transformers.irToJs
 import org.jetbrains.kotlin.ir.backend.js.utils.JsGenerationContext
 import org.jetbrains.kotlin.ir.backend.js.utils.JsStaticContext
 import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.util.IdSignatureRenderer
+import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.js.backend.ast.JsBlock
 import org.jetbrains.kotlin.js.backend.ast.JsCompositeBlock
 
@@ -22,9 +24,11 @@ class IrFileToJsTransformer(private val useBareParameterNames: Boolean = false) 
         )
         val block = JsCompositeBlock()
 
-        declaration.declarations.forEach {
-            block.statements.add(it.accept(IrDeclarationToJsTransformer(), fileContext))
-        }
+        declaration.declarations
+            .sortedBy { it.symbol.signature?.render(IdSignatureRenderer.LEGACY) ?: "" }
+            .forEach {
+                block.statements.add(it.accept(IrDeclarationToJsTransformer(), fileContext))
+            }
 
         return block
     }

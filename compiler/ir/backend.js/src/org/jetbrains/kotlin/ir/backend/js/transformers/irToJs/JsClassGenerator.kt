@@ -498,6 +498,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
         val listRef = irClass.superTypes
             .filter { it.classOrNull?.owner?.isExternal != true && it != baseClass }
             .mapNotNull { it.asConstructorRef() }
+            .sortedBy { it.classOrNull?.owner?.symbol?.signature?.render(IdSignatureRenderer.LEGACY) ?: "" }
             .takeIf { it.isNotEmpty() } ?: return null
         return JsArrayLiteral(listRef.toSmartList())
     }
