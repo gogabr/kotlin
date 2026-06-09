@@ -300,7 +300,7 @@ class Merger(
 
         DFS.dfs(
             classModelMap.keys.sortedBy { it.ident },
-            { classModelMap[it]?.dependsOnClasses ?: emptyList() },
+            { classModelMap[it]?.dependsOnClasses?.sortedBy { it.ident } ?: emptyList() },
             declarationHandler
         )
     }
