@@ -192,35 +192,35 @@ class JsNameLinkingNamer(
             }
 
             allClasses.reversed().forEach {
-                it.declarations.forEach {
-                    when {
-                        it is IrField -> {
-                            val correspondingProperty = it.correspondingPropertySymbol?.owner
-                            val hasStableName = correspondingProperty != null &&
-                                    correspondingProperty.visibility.isPublicAPI &&
-                                    (correspondingProperty.isExported(context) || correspondingProperty.getJsName() != null) &&
-                                    correspondingProperty.isSimpleProperty
-                            val safeName = when {
-                               hasStableName -> correspondingProperty.getJsNameOrKotlinName().identifier
-                               minimizedMemberNames && !context.keeper.shouldKeep(it) ->
-                                    context.minimizedNameGenerator.generateNextName(it.getJsNameOrKotlinName().identifier)
-                               else -> it.safeName()
+                it.declarations
+                    .sortedBy { it.symbol.signature?.render(IdSignatureRenderer.LEGACY) ?: "" }
+                    .forEach {
+                        when {
+                            it is IrField -> {
+                                val correspondingProperty = it.correspondingPropertySymbol?.owner
+                                val hasStableName = correspondingProperty != null &&
+                                        correspondingProperty.visibility.isPublicAPI &&
+                                        (correspondingProperty.isExported(context) || correspondingProperty.getJsName() != null) &&
+                                        correspondingProperty.isSimpleProperty
+                                val safeName = when {
+                                    hasStableName -> correspondingProperty.getJsNameOrKotlinName().identifier
+                                    minimizedMemberNames && !context.keeper.shouldKeep(it) ->
+                                        context.minimizedNameGenerator.generateNextName(it.getJsNameOrKotlinName().identifier)
+                                    else -> it.safeName()
+                                }
+                                val resultName = if (!hasStableName) {
+                                    val suffix = nameCnt.getOrDefault(safeName, 0) + 1
+                                    nameCnt[safeName] = suffix
+                                    safeName + "_$suffix"
+                                } else safeName
+                                result[it] = resultName
                             }
-                            val resultName = if (!hasStableName) {
-                                val suffix = nameCnt.getOrDefault(safeName, 0) + 1
-                                nameCnt[safeName] = suffix
-                                safeName + "_$suffix"
-                            } else safeName
-                            result[it] = resultName
-                        }
 
-                        it is IrFunction && it.dispatchReceiverParameter != null -> {
-                            val signature = jsFunctionSignature(it, context)
-                            require(signature !in nameCnt)
-                            nameCnt[signature] = 1 // avoid clashes with member functions
+                            it is IrFunction && it.dispatchReceiverParameter != null -> {
+                                nameCnt[jsFunctionSignature(it, context)] = 1 // avoid clashes with member functions
+                            }
                         }
                     }
-                }
             }
 
             result
