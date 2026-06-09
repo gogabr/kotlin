@@ -214,12 +214,12 @@ class Merger(
         val initializerBlock = JsCompositeBlock()
         val eagerInitializerBlock = JsCompositeBlock()
 
-        fragments.forEach {
-            moduleBody += it.declarations.statements
-            classModels += it.classes
-            initializerBlock.statements += it.initializers.statements
-            eagerInitializerBlock.statements += it.eagerInitializers.statements
-            polyfillDeclarationBlock.statements += it.polyfills.statements
+        fragments.forEach { fragment ->
+            moduleBody += fragment.declarations.statements.sortedBy { it::class.java.name }
+            classModels += fragment.classes
+            initializerBlock.statements += fragment.initializers.statements
+            eagerInitializerBlock.statements += fragment.eagerInitializers.statements
+            polyfillDeclarationBlock.statements += fragment.polyfills.statements
         }
 
         // sort member forwarding code

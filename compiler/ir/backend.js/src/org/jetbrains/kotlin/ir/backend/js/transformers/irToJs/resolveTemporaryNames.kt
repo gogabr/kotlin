@@ -54,7 +54,7 @@ private fun JsNode.resolveNames(): Map<JsName, JsName> {
         // Outer `foo` resolves first, so when traversing inner scope, we should take it into account.
         occupiedNames += scope.usedNames.asSequence().mapNotNull { if (!it.isTemporary) it.ident else replacements[it]?.ident }
 
-        for (temporaryName in scope.declaredNames.asSequence().filter { it.isTemporary }) {
+        for (temporaryName in scope.declaredNames.asSequence().filter { it.isTemporary }.sortedBy { it.ident }) {
             var hashCode = if (temporaryName.hasData(SOURCE_LOCATION_KEY)) {
                 temporaryName.getData(SOURCE_LOCATION_KEY)
             } else 0

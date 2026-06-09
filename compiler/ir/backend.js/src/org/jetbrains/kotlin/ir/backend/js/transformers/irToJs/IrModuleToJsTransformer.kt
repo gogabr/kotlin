@@ -687,7 +687,7 @@ fun generateSingleWrappedModuleBody(
                         .flatMap { (key, group) ->
                             val isFunctions = key.second
                             group.takeIf { isFunctions }
-                                ?.sortedBy { (it as JsExpressionStatement).expression.let { (it as JsFunction).name.ident } }
+                                ?.sortedBy { (it as JsExpressionStatement).expression.let { (it as JsFunction).name?.ident ?: "" } }
                                 ?: group
                         }
                 statements.clear()

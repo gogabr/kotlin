@@ -129,7 +129,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
             classModel.preDeclarationBlock.statements += jsClass.makeStmt()
         }
 
-        for (declaration in irClass.declarations) {
+        for (declaration in irClass.declarations.sortedBy { it.symbol.signature?.render(IdSignatureRenderer.LEGACY) ?: "" }) {
             when (declaration) {
                 is IrConstructor -> {
                     val constructor = declaration.accept(IrFunctionToJsTransformer(), context)

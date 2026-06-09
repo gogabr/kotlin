@@ -191,33 +191,36 @@ class JsNameLinkingNamer(
                 }
             }
 
-            allClasses.reversed().forEach {
-                it.declarations
+            allClasses.reversed().forEach { irClass ->
+                irClass.declarations
                     .sortedBy { it.symbol.signature?.render(IdSignatureRenderer.LEGACY) ?: "" }
-                    .forEach {
+                    .forEach { declaration ->
                         when {
-                            it is IrField -> {
-                                val correspondingProperty = it.correspondingPropertySymbol?.owner
+                            declaration is IrField -> {
+                                val correspondingProperty = declaration.correspondingPropertySymbol?.owner
                                 val hasStableName = correspondingProperty != null &&
                                         correspondingProperty.visibility.isPublicAPI &&
                                         (correspondingProperty.isExported(context) || correspondingProperty.getJsName() != null) &&
                                         correspondingProperty.isSimpleProperty
                                 val safeName = when {
                                     hasStableName -> correspondingProperty.getJsNameOrKotlinName().identifier
-                                    minimizedMemberNames && !context.keeper.shouldKeep(it) ->
-                                        context.minimizedNameGenerator.generateNextName(it.getJsNameOrKotlinName().identifier)
-                                    else -> it.safeName()
+                                    minimizedMemberNames && !context.keeper.shouldKeep(declaration) -> {
+                                        val seed = declaration.fqNameWhenAvailable?.asString()
+                                            ?: (irClass.name.identifier + "::" + declaration.getJsNameOrKotlinName().identifier)
+                                        context.minimizedNameGenerator.generateNextName(declaration.getJsNameOrKotlinName().identifier)
+                                    }
+                                    else -> declaration.safeName()
                                 }
                                 val resultName = if (!hasStableName) {
                                     val suffix = nameCnt.getOrDefault(safeName, 0) + 1
                                     nameCnt[safeName] = suffix
                                     safeName + "_$suffix"
                                 } else safeName
-                                result[it] = resultName
+                                result[declaration] = resultName
                             }
 
-                            it is IrFunction && it.dispatchReceiverParameter != null -> {
-                                nameCnt[jsFunctionSignature(it, context)] = 1 // avoid clashes with member functions
+                            declaration is IrFunction && declaration.dispatchReceiverParameter != null -> {
+                                nameCnt[jsFunctionSignature(declaration, context)] = 1 // avoid clashes with member functions
                             }
                         }
                     }

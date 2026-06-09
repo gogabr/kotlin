@@ -6,6 +6,8 @@
 package org.jetbrains.kotlin.ir.backend.js.utils
 
 import org.jetbrains.kotlin.backend.common.serialization.toStableJsIdentifier
+import java.io.File
+
 
 class MinimizedNameGenerator {
     private var index = 0
@@ -14,7 +16,8 @@ class MinimizedNameGenerator {
     private val keptNames = hashSetOf<String>()
 
     fun generateNextName(seed: String): String {
-        return seed.toStableJsIdentifier(reservedNames)
+        val result = seed.toStableJsIdentifier(reservedNames)
+        return result
     }
 
     fun nameBySignature(signature: String): String {
