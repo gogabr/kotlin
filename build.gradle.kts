@@ -698,7 +698,7 @@ allprojects {
             }
         }
 
-        maven("https://download-cdn.jetbrains.com/teamcity-repository") {
+        maven("https://download.jetbrains.com/teamcity-repository") {
             content {
                 includeModule("org.jetbrains.teamcity", "serviceMessages")
                 includeModule("org.jetbrains.teamcity.idea", "annotations")
