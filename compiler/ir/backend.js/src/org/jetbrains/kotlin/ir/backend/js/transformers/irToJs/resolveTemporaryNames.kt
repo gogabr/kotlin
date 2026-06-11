@@ -6,9 +6,6 @@
 package org.jetbrains.kotlin.ir.backend.js.transformers.irToJs
 
 import org.jetbrains.kotlin.js.backend.ast.*
-import java.nio.ByteBuffer
-import java.util.Base64
-import java.util.Objects
 
 fun JsNode.resolveTemporaryNames() {
     val renamings = resolveNames()
@@ -23,20 +20,6 @@ fun JsNode.resolveTemporaryNames() {
             }
         }
     })
-}
-
-private fun getShortHash(value: Int): String {
-    val encoder = Base64.getEncoder()
-    val numSymbols = 4
-    val valueAsArray = ByteBuffer.allocate(Int.SIZE_BYTES).putInt(value).array()
-    val base64Encoded = encoder.encodeToString(valueAsArray).substring(0, numSymbols)
-    return base64Encoded.replace('+', '_').replace('/', '$')
-}
-
-private const val SOURCE_LOCATION_KEY = "sourceLocation"
-
-private fun JsLocationWithSource.toLocationHash(): Int {
-    return Objects.hash(fileIdentity ?: file, startLine, startChar)
 }
 
 private fun JsNode.resolveNames(): Map<JsName, JsName> {
@@ -54,17 +37,14 @@ private fun JsNode.resolveNames(): Map<JsName, JsName> {
         // Outer `foo` resolves first, so when traversing inner scope, we should take it into account.
         occupiedNames += scope.usedNames.asSequence().mapNotNull { if (!it.isTemporary) it.ident else replacements[it]?.ident }
 
-        for (temporaryName in scope.declaredNames.asSequence().filter { it.isTemporary }.sortedBy { it.ident }) {
-            var hashCode = if (temporaryName.hasData(SOURCE_LOCATION_KEY)) {
-                temporaryName.getData(SOURCE_LOCATION_KEY)
-            } else 0
-            var suffix = getShortHash(hashCode)
-            var resolvedName = temporaryName.ident + suffix
+        val nextSuffix = hashMapOf<String, Int>()
+        for (temporaryName in scope.declaredNames.asSequence().filter { it.isTemporary }) {
+            var resolvedName = temporaryName.ident
+            var suffix = nextSuffix.getOrDefault(temporaryName.ident, 0)
             while (resolvedName in JsDeclarationScope.RESERVED_WORDS || resolvedName in occupiedNames) {
-                hashCode = Objects.hash(hashCode, 1)
-                suffix = getShortHash(hashCode)
-                resolvedName = temporaryName.ident + suffix
+                resolvedName = "${temporaryName.ident}_${suffix++}"
             }
+            nextSuffix[temporaryName.ident] = suffix
             replacements[temporaryName] = JsDynamicScope.declareName(resolvedName).apply { copyMetadataFrom(temporaryName) }
             occupiedNames += resolvedName
         }
@@ -95,10 +75,7 @@ private fun JsNode.computeScopes(): Scope {
         var currentScope: Scope = rootScope
 
         override fun visitClass(x: JsClass) {
-            x.name?.let {
-                currentScope.declaredNames += it
-                x.source?.let { src -> it.setData(SOURCE_LOCATION_KEY, src.toLocationHash()) }
-            }
+            x.name?.let { currentScope.declaredNames += it }
             // We need it to not rename methods and fields inside class body
             // Because if they are in clash with something, it means overriding
             x.constructor?.accept(this)
@@ -111,31 +88,23 @@ private fun JsNode.computeScopes(): Scope {
         }
 
         fun visitFunction(x: JsFunction, shouldReserveName: Boolean) {
-            x.name?.takeIf { shouldReserveName }?.let {
-                currentScope.declaredNames += it
-                x.source?.let { src -> it.setData(SOURCE_LOCATION_KEY, src.toLocationHash()) }
-            }
+            x.name?.takeIf { shouldReserveName }?.let { currentScope.declaredNames += it }
             val oldScope = currentScope
             currentScope = Scope().apply {
                 currentScope.children += this
             }
-            x.parameters.forEach { p ->
-                currentScope.declaredNames += p.name
-                p.source?.let { src -> p.name.setData(SOURCE_LOCATION_KEY, src.toLocationHash()) }
-            }
+            currentScope.declaredNames += x.parameters.map { it.name }
             super.visitFunction(x)
             currentScope = oldScope
         }
 
         override fun visitCatch(x: JsCatch) {
             currentScope.declaredNames += x.parameter.name
-            x.source?.let { x.parameter.name.setData(SOURCE_LOCATION_KEY, it.toLocationHash()) }
             super.visitCatch(x)
         }
 
         override fun visit(x: JsVars.JsVar) {
             currentScope.declaredNames += x.name
-            x.source?.let { x.name.setData(SOURCE_LOCATION_KEY, it.toLocationHash()) }
             super.visit(x)
         }
 
