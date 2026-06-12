@@ -206,8 +206,8 @@ class JsNameLinkingNamer(
                                     hasStableName -> correspondingProperty.getJsNameOrKotlinName().identifier
                                     minimizedMemberNames && !context.keeper.shouldKeep(declaration) -> {
                                         val seed = declaration.fqNameWhenAvailable?.asString()
-                                            ?: (irClass.name.identifier + "::" + declaration.getJsNameOrKotlinName().identifier)
-                                        context.minimizedNameGenerator.generateNextName(declaration.getJsNameOrKotlinName().identifier)
+                                            ?: (irClass.name.asString() + "::" + declaration.name.asString())
+                                        context.minimizedNameGenerator.generateNextName(seed)
                                     }
                                     else -> declaration.safeName()
                                 }
