@@ -159,7 +159,9 @@ class JsNameLinkingNamer(
             val nameCnt = hashMapOf<String, Int>()
 
             val allClasses = DFS.topologicalOrder(listOf(this)) { node ->
-                node.superTypes.sortedBy { it.safeAs<IrSimpleType>()?.classifier?.signature?.render(IdSignatureRenderer.LEGACY) ?: "" }.mapNotNull {
+                node.superTypes
+//                    .sortedBy { it.safeAs<IrSimpleType>()?.classifier?.signature?.render(IdSignatureRenderer.LEGACY) ?: "" }
+                    .mapNotNull {
                     it.safeAs<IrSimpleType>()?.classifier.safeAs<IrClassSymbol>()?.owner
                 }
             }
