@@ -193,7 +193,6 @@ class JsNameLinkingNamer(
 
             allClasses.reversed().forEach { irClass ->
                 irClass.declarations
-//                    .sortedBy { it.symbol.signature?.render(IdSignatureRenderer.LEGACY) ?: "" }
                     .forEach { declaration ->
                         when {
                             declaration is IrField -> {
