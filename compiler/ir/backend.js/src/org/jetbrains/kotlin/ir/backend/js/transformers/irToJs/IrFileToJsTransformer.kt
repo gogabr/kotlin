@@ -25,9 +25,12 @@ class IrFileToJsTransformer(private val useBareParameterNames: Boolean = false) 
         val block = JsCompositeBlock()
 
         declaration.declarations
-            .sortedBy { it.symbol.signature?.render(IdSignatureRenderer.LEGACY) ?: "" }
+            .map { it to it.accept(IrDeclarationToJsTransformer(), fileContext) }
+            .sortedBy {
+                it.first.symbol.signature?.render(IdSignatureRenderer.LEGACY) ?: ""
+            }
             .forEach {
-                block.statements.add(it.accept(IrDeclarationToJsTransformer(), fileContext))
+                block.statements.add(it.second)
             }
 
         return block
